@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import BodyJointMap from "@/components/BodyJointMap";
 
 const metrics = [
-  { key: "pain", label: "Боль", emoji: "🔴", color: "from-red-100 to-red-50", activeColor: "bg-red-400 text-white", hint: "Насколько вам сейчас больно?" },
   { key: "fatigue", label: "Усталость", emoji: "😴", color: "from-blue-100 to-blue-50", activeColor: "bg-blue-400 text-white", hint: "Ощущаете ли вы сильную усталость?" },
   { key: "mobility", label: "Подвижность", emoji: "🦴", color: "from-amber-100 to-amber-50", activeColor: "bg-amber-400 text-white", hint: "Насколько ограничены движения?" },
   { key: "mood", label: "Настроение", emoji: "☀️", color: "from-green-100 to-green-50", activeColor: "bg-green-400 text-white", hint: "Как вы себя чувствуете эмоционально?" },
@@ -16,18 +16,21 @@ interface DiaryPageProps {
 
 export default function DiaryPage({ onSave }: DiaryPageProps) {
   const [values, setValues] = useState<Record<string, number>>({});
+  const [jointPain, setJointPain] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState(false);
 
   const today = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
 
   const handleSave = () => {
-    onSave({ ...values, note: note.length });
+    const maxJointPain = Object.values(jointPain).length > 0 ? Math.max(...Object.values(jointPain)) : 0;
+    onSave({ ...values, pain: maxJointPain, joints: Object.keys(jointPain).length, note: note.length });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const allFilled = metrics.every((m) => values[m.key]);
+  const hasJoints = Object.keys(jointPain).length > 0;
+  const allFilled = metrics.every((m) => values[m.key]) && hasJoints;
 
   return (
     <div className="pb-24 space-y-5 animate-fade-in">
@@ -50,9 +53,28 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         )}
       </div>
 
-      {/* Metrics */}
+      {/* Joint pain map */}
+      <div className="card-warm p-5 animate-slide-up">
+        <div className="bg-gradient-to-r from-red-100 to-red-50 rounded-xl p-4 mb-5">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔴</span>
+              <span className="font-semibold text-foreground">Боль в суставах</span>
+            </div>
+            {hasJoints && (
+              <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                {Object.keys(jointPain).length} сустав(а)
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">Отметьте болезненные суставы на теле</p>
+        </div>
+        <BodyJointMap onJointsChange={setJointPain} />
+      </div>
+
+      {/* Other metrics */}
       {metrics.map((metric, idx) => (
-        <div key={metric.key} className="card-warm p-5 animate-slide-up" style={{ animationDelay: `${idx * 0.08}s` }}>
+        <div key={metric.key} className="card-warm p-5 animate-slide-up" style={{ animationDelay: `${(idx + 1) * 0.08}s` }}>
           <div className={`bg-gradient-to-r ${metric.color} rounded-xl p-4 mb-4`}>
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
@@ -116,7 +138,11 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
           ? "bg-primary text-white shadow-lg hover:bg-orange-500 hover:shadow-xl active:scale-95"
           : "bg-muted text-muted-foreground cursor-not-allowed"}`}
         style={allFilled ? { boxShadow: '0 8px 24px hsl(16 72% 58% / 0.35)' } : {}}>
-        {allFilled ? "💾 Сохранить запись" : `Заполните все показатели (${Object.keys(values).length}/4)`}
+        {allFilled
+          ? "💾 Сохранить запись"
+          : !hasJoints
+            ? "Отметьте хотя бы один сустав"
+            : `Заполните все показатели (${Object.keys(values).length}/3)`}
       </button>
     </div>
   );
