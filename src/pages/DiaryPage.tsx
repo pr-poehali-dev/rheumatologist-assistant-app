@@ -1,0 +1,123 @@
+import { useState } from "react";
+import Icon from "@/components/ui/icon";
+
+const metrics = [
+  { key: "pain", label: "Боль", emoji: "🔴", color: "from-red-100 to-red-50", activeColor: "bg-red-400 text-white", hint: "Насколько вам сейчас больно?" },
+  { key: "fatigue", label: "Усталость", emoji: "😴", color: "from-blue-100 to-blue-50", activeColor: "bg-blue-400 text-white", hint: "Ощущаете ли вы сильную усталость?" },
+  { key: "mobility", label: "Подвижность", emoji: "🦴", color: "from-amber-100 to-amber-50", activeColor: "bg-amber-400 text-white", hint: "Насколько ограничены движения?" },
+  { key: "mood", label: "Настроение", emoji: "☀️", color: "from-green-100 to-green-50", activeColor: "bg-green-400 text-white", hint: "Как вы себя чувствуете эмоционально?" },
+];
+
+const moodLabels: Record<number, string> = { 1: "Очень плохо", 2: "Плохо", 3: "Так себе", 4: "Хорошо", 5: "Отлично" };
+
+interface DiaryPageProps {
+  onSave: (entry: Record<string, number>) => void;
+}
+
+export default function DiaryPage({ onSave }: DiaryPageProps) {
+  const [values, setValues] = useState<Record<string, number>>({});
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const today = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+
+  const handleSave = () => {
+    onSave({ ...values, note: note.length });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  const allFilled = metrics.every((m) => values[m.key]);
+
+  return (
+    <div className="pb-24 space-y-5 animate-fade-in">
+      {/* Header */}
+      <div className="card-warm p-5 bg-gradient-to-br from-orange-50 to-amber-50">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-10 h-10 bg-primary/15 rounded-xl flex items-center justify-center">
+            <span className="text-xl">📖</span>
+          </div>
+          <div>
+            <h2 className="font-bold text-foreground text-lg">Дневник здоровья</h2>
+            <p className="text-xs text-muted-foreground capitalize">{today}</p>
+          </div>
+        </div>
+        {saved && (
+          <div className="mt-3 flex items-center gap-2 bg-green-100 text-green-700 rounded-xl px-4 py-2.5 text-sm font-medium animate-slide-up">
+            <Icon name="CheckCircle2" size={16} />
+            Запись сохранена! Молодец 🎉
+          </div>
+        )}
+      </div>
+
+      {/* Metrics */}
+      {metrics.map((metric, idx) => (
+        <div key={metric.key} className="card-warm p-5 animate-slide-up" style={{ animationDelay: `${idx * 0.08}s` }}>
+          <div className={`bg-gradient-to-r ${metric.color} rounded-xl p-4 mb-4`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{metric.emoji}</span>
+                <span className="font-semibold text-foreground">{metric.label}</span>
+              </div>
+              {values[metric.key] && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {metric.key === "mood" ? moodLabels[values[metric.key]] : `${values[metric.key]}/10`}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">{metric.hint}</p>
+          </div>
+
+          {metric.key === "mood" ? (
+            <div className="flex justify-between gap-1">
+              {[1, 2, 3, 4, 5].map((v) => (
+                <button key={v}
+                  onClick={() => setValues({ ...values, [metric.key]: v })}
+                  className={`flex-1 py-3 rounded-xl text-lg transition-all duration-200 hover:scale-105 active:scale-95 ${values[metric.key] === v ? metric.activeColor : "bg-secondary/40 hover:bg-secondary"}`}>
+                  {["😢", "😕", "😐", "🙂", "😄"][v - 1]}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-1.5 flex-wrap">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
+                <button key={v}
+                  onClick={() => setValues({ ...values, [metric.key]: v })}
+                  className={`pain-dot ${values[metric.key] === v ? metric.activeColor : "bg-secondary/40 text-muted-foreground hover:bg-secondary"}`}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Note */}
+      <div className="card-warm p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-lg">📝</span>
+          <span className="font-semibold text-foreground">Заметки</span>
+          <span className="text-xs text-muted-foreground">(необязательно)</span>
+        </div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Как прошёл ваш день? Что заметили особенного?"
+          rows={3}
+          className="w-full px-4 py-3 rounded-xl border border-border bg-secondary/30 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60"
+        />
+      </div>
+
+      {/* Save button */}
+      <button
+        onClick={handleSave}
+        disabled={!allFilled}
+        className={`w-full py-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${allFilled
+          ? "bg-primary text-white shadow-lg hover:bg-orange-500 hover:shadow-xl active:scale-95"
+          : "bg-muted text-muted-foreground cursor-not-allowed"}`}
+        style={allFilled ? { boxShadow: '0 8px 24px hsl(16 72% 58% / 0.35)' } : {}}>
+        {allFilled ? "💾 Сохранить запись" : `Заполните все показатели (${Object.keys(values).length}/4)`}
+      </button>
+    </div>
+  );
+}
