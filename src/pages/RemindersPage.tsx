@@ -6,24 +6,18 @@ interface Reminder {
   type: "medicine" | "doctor" | "exercise";
   title: string;
   time: string;
-  days: string[];
+  repeat: "daily" | "weekly" | "monthly";
+  days: number[]; // weekly: 0-6 (Пн=0), monthly: числа 1-31
   active: boolean;
   emoji: string;
 }
 
-const WEEK_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const WEEK_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-const PRESETS = [
-  { label: "Каждый день", days: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] },
-  { label: "Будни", days: ["Пн", "Вт", "Ср", "Чт", "Пт"] },
-  { label: "Выходные", days: ["Сб", "Вс"] },
-];
-
-const initialReminders: Reminder[] = [
-  { id: 1, type: "medicine", title: "Метотрексат", time: "08:00", days: ["Пн", "Чт"], active: true, emoji: "💊" },
-  { id: 2, type: "medicine", title: "Фолиевая кислота", time: "09:00", days: ["Вт", "Пт", "Вс"], active: true, emoji: "💊" },
-  { id: 3, type: "doctor", title: "Визит к ревматологу", time: "14:00", days: ["Чт"], active: true, emoji: "🏥" },
-  { id: 4, type: "exercise", title: "Утренняя гимнастика", time: "07:30", days: ["Пн", "Вт", "Ср", "Чт", "Пт"], active: false, emoji: "🏃" },
+const REPEAT_OPTIONS: { value: Reminder["repeat"]; label: string; icon: string }[] = [
+  { value: "daily", label: "Каждый день", icon: "Sun" },
+  { value: "weekly", label: "Каждую неделю", icon: "CalendarDays" },
+  { value: "monthly", label: "Каждый месяц", icon: "Calendar" },
 ];
 
 const typeColors: Record<string, string> = {
@@ -31,19 +25,16 @@ const typeColors: Record<string, string> = {
   doctor: "bg-red-50 border-red-100",
   exercise: "bg-green-50 border-green-100",
 };
-
 const typeBadge: Record<string, string> = {
   medicine: "bg-blue-100 text-blue-700",
   doctor: "bg-red-100 text-red-700",
   exercise: "bg-green-100 text-green-700",
 };
-
 const typeLabel: Record<string, string> = {
   medicine: "Лекарство",
   doctor: "Врач",
   exercise: "Упражнения",
 };
-
 const typeEmoji: Record<string, string> = {
   medicine: "💊",
   doctor: "🏥",
@@ -53,52 +44,181 @@ const typeEmoji: Record<string, string> = {
 const defaultForm = {
   title: "",
   time: "08:00",
-  type: "medicine" as "medicine" | "doctor" | "exercise",
-  selectedDays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as string[],
+  type: "medicine" as Reminder["type"],
+  repeat: "daily" as Reminder["repeat"],
+  weekDays: [] as number[],
+  monthDays: [] as number[],
 };
+
+const initialReminders: Reminder[] = [
+  { id: 1, type: "medicine", title: "Метотрексат", time: "08:00", repeat: "weekly", days: [0, 3], active: true, emoji: "💊" },
+  { id: 2, type: "medicine", title: "Фолиевая кислота", time: "09:00", repeat: "weekly", days: [1, 4, 6], active: true, emoji: "💊" },
+  { id: 3, type: "doctor", title: "Визит к ревматологу", time: "14:00", repeat: "monthly", days: [26], active: true, emoji: "🏥" },
+  { id: 4, type: "exercise", title: "Утренняя гимнастика", time: "07:30", repeat: "weekly", days: [0, 1, 2, 3, 4], active: false, emoji: "🏃" },
+];
+
+function formatRepeat(r: Reminder): string {
+  if (r.repeat === "daily") return "Каждый день";
+  if (r.repeat === "weekly") {
+    if (r.days.length === 7) return "Каждый день";
+    return r.days.map((d) => WEEK_LABELS[d]).join(", ");
+  }
+  if (r.repeat === "monthly") {
+    return r.days.map((d) => `${d}-е`).join(", ");
+  }
+  return "";
+}
+
+function isTodayIncluded(r: Reminder): boolean {
+  if (!r.active) return false;
+  const now = new Date();
+  if (r.repeat === "daily") return true;
+  if (r.repeat === "weekly") {
+    const jsDay = now.getDay();
+    const mon0 = jsDay === 0 ? 6 : jsDay - 1;
+    return r.days.includes(mon0);
+  }
+  if (r.repeat === "monthly") {
+    return r.days.includes(now.getDate());
+  }
+  return false;
+}
+
+function MonthCalendar({ selected, onToggle }: { selected: number[]; onToggle: (d: number) => void }) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  const monthName = now.toLocaleString("ru", { month: "long", year: "numeric" });
+
+  const cells: (number | null)[] = [
+    ...Array(offset).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div>
+      <p className="text-xs text-center text-muted-foreground mb-2 capitalize">{monthName}</p>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
+          <div key={d} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e-${i}`} />;
+          const sel = selected.includes(day);
+          const isToday = day === now.getDate();
+          return (
+            <button
+              key={day}
+              onClick={() => onToggle(day)}
+              className={`aspect-square rounded-lg text-xs font-medium transition-all duration-150 hover:scale-105 active:scale-95
+                ${sel
+                  ? "bg-primary text-white shadow-sm"
+                  : isToday
+                  ? "bg-primary/10 text-primary font-bold border border-primary/30"
+                  : "bg-secondary/30 text-foreground hover:bg-secondary"
+                }`}>
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WeekSelector({ selected, onToggle }: { selected: number[]; onToggle: (d: number) => void }) {
+  const PRESETS = [
+    { label: "Каждый день", days: [0, 1, 2, 3, 4, 5, 6] },
+    { label: "Будни", days: [0, 1, 2, 3, 4] },
+    { label: "Выходные", days: [5, 6] },
+  ];
+
+  const applyPreset = (days: number[]) => {
+    days.forEach((d) => { if (!selected.includes(d)) onToggle(d); });
+    selected.forEach((d) => { if (!days.includes(d)) onToggle(d); });
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex gap-1.5 flex-wrap">
+        {PRESETS.map((p) => {
+          const isActive = JSON.stringify([...p.days].sort()) === JSON.stringify([...selected].sort());
+          return (
+            <button key={p.label}
+              onClick={() => applyPreset(p.days)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all
+                ${isActive ? "bg-primary text-white border-primary" : "bg-secondary/40 border-border text-muted-foreground hover:bg-secondary"}`}>
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex gap-1.5">
+        {WEEK_LABELS.map((label, i) => {
+          const sel = selected.includes(i);
+          return (
+            <button key={i}
+              onClick={() => onToggle(i)}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all duration-150 hover:scale-105 active:scale-95
+                ${sel ? "bg-primary text-white border-primary shadow-sm" : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary"}`}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function RemindersPage() {
   const [reminders, setReminders] = useState(initialReminders);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ ...defaultForm });
 
-  const toggle = (id: number) => {
-    setReminders(reminders.map((r) => r.id === id ? { ...r, active: !r.active } : r));
-  };
+  const toggle = (id: number) => setReminders(reminders.map((r) => r.id === id ? { ...r, active: !r.active } : r));
 
-  const toggleDay = (day: string) => {
+  const toggleWeekDay = (d: number) => {
     setForm((f) => ({
       ...f,
-      selectedDays: f.selectedDays.includes(day)
-        ? f.selectedDays.filter((d) => d !== day)
-        : [...f.selectedDays, day],
+      weekDays: f.weekDays.includes(d) ? f.weekDays.filter((x) => x !== d) : [...f.weekDays, d],
     }));
   };
 
-  const applyPreset = (days: string[]) => {
-    setForm((f) => ({ ...f, selectedDays: days }));
+  const toggleMonthDay = (d: number) => {
+    setForm((f) => ({
+      ...f,
+      monthDays: f.monthDays.includes(d) ? f.monthDays.filter((x) => x !== d) : [...f.monthDays, d],
+    }));
   };
 
+  const isValid = !!(form.title && (
+    form.repeat === "daily" ||
+    (form.repeat === "weekly" && form.weekDays.length > 0) ||
+    (form.repeat === "monthly" && form.monthDays.length > 0)
+  ));
+
   const addReminder = () => {
-    if (!form.title || form.selectedDays.length === 0) return;
-    const ordered = WEEK_DAYS.filter((d) => form.selectedDays.includes(d));
+    if (!isValid) return;
+    const days =
+      form.repeat === "daily" ? [] :
+      form.repeat === "weekly" ? [...form.weekDays].sort() :
+      [...form.monthDays].sort((a, b) => a - b);
     const r: Reminder = {
-      id: Date.now(),
-      type: form.type,
-      title: form.title,
-      time: form.time,
-      days: ordered,
-      active: true,
-      emoji: typeEmoji[form.type],
+      id: Date.now(), type: form.type, title: form.title, time: form.time,
+      repeat: form.repeat, days, active: true, emoji: typeEmoji[form.type],
     };
     setReminders([...reminders, r]);
     setShowAdd(false);
     setForm({ ...defaultForm });
   };
 
-  const todayIdx = new Date().getDay();
-  const todayShort = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"][todayIdx];
-  const todayReminders = reminders.filter((r) => r.active && r.days.includes(todayShort));
+  const todayReminders = reminders.filter(isTodayIncluded);
 
   return (
     <div className="pb-24 space-y-5 animate-fade-in">
@@ -115,7 +235,7 @@ export default function RemindersPage() {
             </div>
           </div>
           <button
-            onClick={() => setShowAdd(!showAdd)}
+            onClick={() => { setShowAdd(!showAdd); setForm({ ...defaultForm }); }}
             className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm hover:bg-orange-500 transition-colors active:scale-95">
             <Icon name={showAdd ? "X" : "Plus"} size={18} className="text-white" />
           </button>
@@ -137,7 +257,8 @@ export default function RemindersPage() {
                 {(["medicine", "doctor", "exercise"] as const).map((t) => (
                   <button key={t}
                     onClick={() => setForm({ ...form, type: t })}
-                    className={`flex-1 py-2 rounded-xl border text-xs font-medium transition-all ${form.type === t ? "bg-primary text-white border-primary" : "bg-secondary/30 border-border text-foreground"}`}>
+                    className={`flex-1 py-2 rounded-xl border text-xs font-medium transition-all
+                      ${form.type === t ? "bg-primary text-white border-primary" : "bg-secondary/30 border-border text-foreground"}`}>
                     {typeEmoji[t]} {typeLabel[t]}
                   </button>
                 ))}
@@ -166,49 +287,55 @@ export default function RemindersPage() {
               />
             </div>
 
-            {/* Дни */}
+            {/* Повтор */}
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                Дни недели
-                <span className="ml-1.5 text-primary font-semibold">
-                  {form.selectedDays.length === 7 ? "Каждый день" : `${form.selectedDays.length} дн.`}
-                </span>
-              </label>
-
-              {/* Пресеты */}
-              <div className="flex gap-1.5 mb-2.5 flex-wrap">
-                {PRESETS.map((p) => {
-                  const isActive = JSON.stringify([...p.days].sort()) === JSON.stringify([...form.selectedDays].sort());
-                  return (
-                    <button key={p.label}
-                      onClick={() => applyPreset(p.days)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all duration-150 ${isActive ? "bg-primary text-white border-primary" : "bg-secondary/40 border-border text-muted-foreground hover:bg-secondary"}`}>
-                      {p.label}
-                    </button>
-                  );
-                })}
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">Повтор</label>
+              <div className="flex gap-2">
+                {REPEAT_OPTIONS.map((opt) => (
+                  <button key={opt.value}
+                    onClick={() => setForm({ ...form, repeat: opt.value })}
+                    className={`flex-1 py-2.5 px-1 rounded-xl border text-xs font-medium transition-all flex flex-col items-center gap-1
+                      ${form.repeat === opt.value ? "bg-primary text-white border-primary shadow-sm" : "bg-secondary/30 border-border text-foreground"}`}>
+                    <Icon name={opt.icon} size={14} className={form.repeat === opt.value ? "text-white" : "text-muted-foreground"} />
+                    <span className="leading-tight text-center">{opt.label}</span>
+                  </button>
+                ))}
               </div>
-
-              {/* Кнопки дней */}
-              <div className="flex gap-1.5">
-                {WEEK_DAYS.map((day) => {
-                  const selected = form.selectedDays.includes(day);
-                  return (
-                    <button key={day}
-                      onClick={() => toggleDay(day)}
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all duration-150 hover:scale-105 active:scale-95 ${selected
-                        ? "bg-primary text-white border-primary shadow-sm"
-                        : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary"}`}>
-                      {day}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {form.selectedDays.length === 0 && (
-                <p className="text-xs text-red-500 mt-1.5">Выберите хотя бы один день</p>
-              )}
             </div>
+
+            {/* Дни недели */}
+            {form.repeat === "weekly" && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                  Дни недели
+                  {form.weekDays.length > 0 && (
+                    <span className="ml-1.5 text-primary font-semibold">
+                      {form.weekDays.length === 7 ? "— каждый день" : `— ${form.weekDays.length} дн.`}
+                    </span>
+                  )}
+                </label>
+                <WeekSelector selected={form.weekDays} onToggle={toggleWeekDay} />
+                {form.weekDays.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1.5">Выберите хотя бы один день</p>
+                )}
+              </div>
+            )}
+
+            {/* Календарь месяца */}
+            {form.repeat === "monthly" && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                  Дни месяца
+                  {form.monthDays.length > 0 && (
+                    <span className="ml-1.5 text-primary font-semibold">— {form.monthDays.length} дн.</span>
+                  )}
+                </label>
+                <MonthCalendar selected={form.monthDays} onToggle={toggleMonthDay} />
+                {form.monthDays.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1.5">Выберите хотя бы один день</p>
+                )}
+              </div>
+            )}
 
             {/* Кнопки */}
             <div className="flex gap-2 pt-1">
@@ -218,10 +345,9 @@ export default function RemindersPage() {
               </button>
               <button
                 onClick={addReminder}
-                disabled={!form.title || form.selectedDays.length === 0}
-                className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${form.title && form.selectedDays.length > 0
-                  ? "bg-primary text-white hover:bg-orange-500"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
+                disabled={!isValid}
+                className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all active:scale-95
+                  ${isValid ? "bg-primary text-white hover:bg-orange-500" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
                 Добавить
               </button>
             </div>
@@ -255,7 +381,7 @@ export default function RemindersPage() {
         <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Все напоминания</h3>
         {reminders.map((r, idx) => (
           <div key={r.id}
-            className={`card-warm p-4 ${typeColors[r.type]} animate-slide-up transition-all duration-300`}
+            className={`card-warm p-4 ${typeColors[r.type]} animate-slide-up`}
             style={{ animationDelay: `${idx * 0.05}s` }}>
             <div className="flex items-center gap-3">
               <span className="text-2xl">{r.emoji}</span>
@@ -268,14 +394,8 @@ export default function RemindersPage() {
                   <Icon name="Clock" size={12} className="text-muted-foreground shrink-0" />
                   <span className="text-xs text-muted-foreground">{r.time}</span>
                   <span className="text-muted-foreground">·</span>
-                  <div className="flex gap-1 flex-wrap">
-                    {r.days.length === 7
-                      ? <span className="text-xs text-muted-foreground">Каждый день</span>
-                      : r.days.map((d) => (
-                        <span key={d} className="text-xs bg-white/70 border border-border rounded-md px-1.5 py-0.5 text-foreground font-medium">{d}</span>
-                      ))
-                    }
-                  </div>
+                  <Icon name={REPEAT_OPTIONS.find((x) => x.value === r.repeat)!.icon} size={11} className="text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground">{formatRepeat(r)}</span>
                 </div>
               </div>
               <button
