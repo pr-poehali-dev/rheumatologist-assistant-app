@@ -195,8 +195,10 @@ export default function RemindersPage() {
   const [reminders, setReminders] = useState(initialReminders);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ ...defaultForm });
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const toggle = (id: number) => setReminders(reminders.map((r) => r.id === id ? { ...r, active: !r.active } : r));
+  const deleteReminder = (id: number) => { setReminders(reminders.filter((r) => r.id !== id)); setConfirmDelete(null); };
 
   const toggleWeekDay = (d: number) => {
     setForm((f) => ({
@@ -241,10 +243,10 @@ export default function RemindersPage() {
   return (
     <div className="pb-24 space-y-5 animate-fade-in">
       {/* Header */}
-      <div className="card-warm p-5 bg-gradient-to-br from-purple-50 to-pink-50">
+      <div className="card-warm p-5 bg-gradient-to-br from-green-50 to-yellow-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
               <span className="text-xl">⏰</span>
             </div>
             <div>
@@ -254,7 +256,7 @@ export default function RemindersPage() {
           </div>
           <button
             onClick={() => { setShowAdd(!showAdd); setForm({ ...defaultForm }); }}
-            className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm hover:bg-orange-500 transition-colors active:scale-95">
+            className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-sm hover:brightness-110 transition-all active:scale-95">
             <Icon name={showAdd ? "X" : "Plus"} size={18} className="text-white" />
           </button>
         </div>
@@ -386,7 +388,7 @@ export default function RemindersPage() {
                 onClick={addReminder}
                 disabled={!isValid}
                 className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all active:scale-95
-                  ${isValid ? "bg-primary text-white hover:bg-orange-500" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
+                  ${isValid ? "bg-primary text-white hover:brightness-110" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
                 Добавить
               </button>
             </div>
@@ -437,12 +439,36 @@ export default function RemindersPage() {
                   <span className="text-xs text-muted-foreground">{formatRepeat(r)}</span>
                 </div>
               </div>
-              <button
-                onClick={() => toggle(r.id)}
-                className={`w-11 h-6 rounded-full transition-all duration-300 relative shrink-0 ${r.active ? "bg-primary" : "bg-border"}`}>
-                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${r.active ? "left-5" : "left-0.5"}`} />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => toggle(r.id)}
+                  className={`w-11 h-6 rounded-full transition-all duration-300 relative ${r.active ? "bg-primary" : "bg-border"}`}>
+                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${r.active ? "left-5" : "left-0.5"}`} />
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(confirmDelete === r.id ? null : r.id)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all duration-150 active:scale-90">
+                  <Icon name="Trash2" size={14} />
+                </button>
+              </div>
             </div>
+
+            {/* Подтверждение удаления */}
+            {confirmDelete === r.id && (
+              <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-3 animate-fade-in">
+                <p className="text-xs text-muted-foreground">Удалить «{r.title}»?</p>
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmDelete(null)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-muted-foreground hover:bg-secondary/40 transition-colors">
+                    Нет
+                  </button>
+                  <button onClick={() => deleteReminder(r.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500 text-white hover:bg-red-600 transition-colors active:scale-95">
+                    Удалить
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

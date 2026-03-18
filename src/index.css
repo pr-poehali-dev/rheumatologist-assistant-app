@@ -4,42 +4,42 @@
 
 @layer base {
   :root {
-    --background: 34 40% 97%;
-    --foreground: 20 25% 18%;
+    --background: 80 30% 96%;
+    --foreground: 100 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 20 25% 18%;
+    --card-foreground: 100 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 20 25% 18%;
+    --popover-foreground: 100 20% 15%;
 
-    --primary: 16 72% 58%;
+    --primary: 88 50% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 32 60% 92%;
-    --secondary-foreground: 20 25% 28%;
+    --secondary: 80 40% 90%;
+    --secondary-foreground: 100 20% 25%;
 
-    --muted: 30 30% 93%;
-    --muted-foreground: 20 15% 52%;
+    --muted: 80 20% 92%;
+    --muted-foreground: 100 10% 50%;
 
-    --accent: 43 85% 72%;
-    --accent-foreground: 20 25% 18%;
+    --accent: 52 90% 60%;
+    --accent-foreground: 100 20% 15%;
 
     --destructive: 0 72% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 25% 88%;
-    --input: 30 25% 88%;
-    --ring: 16 72% 58%;
+    --border: 80 20% 85%;
+    --input: 80 20% 85%;
+    --ring: 88 50% 42%;
 
     --radius: 1rem;
 
-    --warm-peach: 16 72% 94%;
-    --warm-coral: 16 72% 58%;
-    --warm-amber: 43 85% 72%;
-    --warm-sage: 142 25% 68%;
+    --warm-peach: 88 50% 92%;
+    --warm-coral: 88 50% 42%;
+    --warm-amber: 52 90% 60%;
+    --warm-sage: 142 30% 60%;
     --warm-lavender: 270 30% 85%;
-    --warm-cream: 34 40% 97%;
+    --warm-cream: 80 30% 96%;
   }
 }
 
@@ -53,12 +53,12 @@
     background-image:
       radial-gradient(
         ellipse at 20% 20%,
-        hsl(16 72% 94% / 0.6) 0%,
+        hsl(88 50% 88% / 0.5) 0%,
         transparent 50%
       ),
       radial-gradient(
         ellipse at 80% 80%,
-        hsl(43 85% 90% / 0.4) 0%,
+        hsl(52 90% 88% / 0.4) 0%,
         transparent 50%
       );
     min-height: 100vh;
@@ -74,12 +74,12 @@
   }
 
   .card-warm {
-    @apply bg-white rounded-2xl shadow-sm border border-orange-100/60;
+    @apply bg-white rounded-2xl shadow-sm border border-green-100/60;
   }
 
   .btn-primary {
     @apply bg-primary text-primary-foreground rounded-xl px-6 py-3 font-semibold text-sm
-    hover:bg-orange-500 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md;
+    hover:brightness-110 active:scale-95 transition-all duration-200 shadow-sm hover:shadow-md;
   }
 
   .nav-item {
