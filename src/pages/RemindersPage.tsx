@@ -6,8 +6,9 @@ interface Reminder {
   type: "medicine" | "doctor" | "exercise";
   title: string;
   time: string;
-  repeat: "daily" | "weekly" | "monthly";
+  repeat: "daily" | "weekly" | "monthly" | "once";
   days: number[]; // weekly: 0-6 (Пн=0), monthly: числа 1-31
+  date?: string;  // для once: "YYYY-MM-DD"
   active: boolean;
   emoji: string;
 }
@@ -17,6 +18,11 @@ const WEEK_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const REPEAT_OPTIONS: { value: Reminder["repeat"]; label: string; icon: string }[] = [
   { value: "daily", label: "Каждый день", icon: "Sun" },
   { value: "weekly", label: "Каждую неделю", icon: "CalendarDays" },
+  { value: "monthly", label: "Каждый месяц", icon: "Calendar" },
+];
+
+const DOCTOR_REPEAT_OPTIONS: { value: Reminder["repeat"]; label: string; icon: string }[] = [
+  { value: "once", label: "Один раз", icon: "CalendarCheck" },
   { value: "monthly", label: "Каждый месяц", icon: "Calendar" },
 ];
 
@@ -48,12 +54,13 @@ const defaultForm = {
   repeat: "daily" as Reminder["repeat"],
   weekDays: [] as number[],
   monthDays: [] as number[],
+  date: "",
 };
 
 const initialReminders: Reminder[] = [
   { id: 1, type: "medicine", title: "Метотрексат", time: "08:00", repeat: "weekly", days: [0, 3], active: true, emoji: "💊" },
   { id: 2, type: "medicine", title: "Фолиевая кислота", time: "09:00", repeat: "weekly", days: [1, 4, 6], active: true, emoji: "💊" },
-  { id: 3, type: "doctor", title: "Визит к ревматологу", time: "14:00", repeat: "monthly", days: [26], active: true, emoji: "🏥" },
+  { id: 3, type: "doctor", title: "Визит к ревматологу", time: "14:00", repeat: "once", days: [], date: "2026-03-26", active: true, emoji: "🏥" },
   { id: 4, type: "exercise", title: "Утренняя гимнастика", time: "07:30", repeat: "weekly", days: [0, 1, 2, 3, 4], active: false, emoji: "🏃" },
 ];
 
@@ -66,12 +73,17 @@ function formatRepeat(r: Reminder): string {
   if (r.repeat === "monthly") {
     return r.days.map((d) => `${d}-е`).join(", ");
   }
+  if (r.repeat === "once" && r.date) {
+    const d = new Date(r.date + "T00:00:00");
+    return d.toLocaleDateString("ru", { day: "numeric", month: "long", year: "numeric" });
+  }
   return "";
 }
 
 function isTodayIncluded(r: Reminder): boolean {
   if (!r.active) return false;
   const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
   if (r.repeat === "daily") return true;
   if (r.repeat === "weekly") {
     const jsDay = now.getDay();
@@ -80,6 +92,9 @@ function isTodayIncluded(r: Reminder): boolean {
   }
   if (r.repeat === "monthly") {
     return r.days.includes(now.getDate());
+  }
+  if (r.repeat === "once") {
+    return r.date === todayStr;
   }
   return false;
 }
@@ -200,18 +215,21 @@ export default function RemindersPage() {
   const isValid = !!(form.title && (
     form.repeat === "daily" ||
     (form.repeat === "weekly" && form.weekDays.length > 0) ||
-    (form.repeat === "monthly" && form.monthDays.length > 0)
+    (form.repeat === "monthly" && form.monthDays.length > 0) ||
+    (form.repeat === "once" && form.date)
   ));
 
   const addReminder = () => {
     if (!isValid) return;
     const days =
       form.repeat === "daily" ? [] :
+      form.repeat === "once" ? [] :
       form.repeat === "weekly" ? [...form.weekDays].sort() :
       [...form.monthDays].sort((a, b) => a - b);
     const r: Reminder = {
       id: Date.now(), type: form.type, title: form.title, time: form.time,
-      repeat: form.repeat, days, active: true, emoji: typeEmoji[form.type],
+      repeat: form.repeat, days, date: form.date || undefined,
+      active: true, emoji: typeEmoji[form.type],
     };
     setReminders([...reminders, r]);
     setShowAdd(false);
@@ -256,7 +274,11 @@ export default function RemindersPage() {
               <div className="flex gap-2">
                 {(["medicine", "doctor", "exercise"] as const).map((t) => (
                   <button key={t}
-                    onClick={() => setForm({ ...form, type: t })}
+                    onClick={() => setForm({
+                      ...form, type: t,
+                      repeat: t === "doctor" ? "once" : (form.repeat === "once" ? "daily" : form.repeat),
+                      date: t === "doctor" ? form.date : "",
+                    })}
                     className={`flex-1 py-2 rounded-xl border text-xs font-medium transition-all
                       ${form.type === t ? "bg-primary text-white border-primary" : "bg-secondary/30 border-border text-foreground"}`}>
                     {typeEmoji[t]} {typeLabel[t]}
@@ -291,7 +313,7 @@ export default function RemindersPage() {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">Повтор</label>
               <div className="flex gap-2">
-                {REPEAT_OPTIONS.map((opt) => (
+                {(form.type === "doctor" ? DOCTOR_REPEAT_OPTIONS : REPEAT_OPTIONS).map((opt) => (
                   <button key={opt.value}
                     onClick={() => setForm({ ...form, repeat: opt.value })}
                     className={`flex-1 py-2.5 px-1 rounded-xl border text-xs font-medium transition-all flex flex-col items-center gap-1
@@ -302,6 +324,23 @@ export default function RemindersPage() {
                 ))}
               </div>
             </div>
+
+            {/* Конкретная дата — только для врача + once */}
+            {form.repeat === "once" && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Дата визита</label>
+                <input
+                  type="date"
+                  value={form.date}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-border bg-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+                {!form.date && (
+                  <p className="text-xs text-red-500 mt-1.5">Выберите дату</p>
+                )}
+              </div>
+            )}
 
             {/* Дни недели */}
             {form.repeat === "weekly" && (
@@ -394,7 +433,7 @@ export default function RemindersPage() {
                   <Icon name="Clock" size={12} className="text-muted-foreground shrink-0" />
                   <span className="text-xs text-muted-foreground">{r.time}</span>
                   <span className="text-muted-foreground">·</span>
-                  <Icon name={REPEAT_OPTIONS.find((x) => x.value === r.repeat)!.icon} size={11} className="text-muted-foreground shrink-0" />
+                  <Icon name={[...REPEAT_OPTIONS, ...DOCTOR_REPEAT_OPTIONS].find((x) => x.value === r.repeat)?.icon ?? "Clock"} size={11} className="text-muted-foreground shrink-0" />
                   <span className="text-xs text-muted-foreground">{formatRepeat(r)}</span>
                 </div>
               </div>
