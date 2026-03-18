@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import useLocalStorage from "@/lib/useLocalStorage";
 
 interface Reminder {
   id: number;
@@ -192,7 +193,7 @@ function WeekSelector({ selected, onToggle }: { selected: number[]; onToggle: (d
 }
 
 export default function RemindersPage() {
-  const [reminders, setReminders] = useState(initialReminders);
+  const [reminders, setReminders] = useLocalStorage<Reminder[]>("revma_reminders", initialReminders);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ ...defaultForm });
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);

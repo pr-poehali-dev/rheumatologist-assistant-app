@@ -1,10 +1,24 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import BodyJointMap from "@/components/BodyJointMap";
+import useLocalStorage from "@/lib/useLocalStorage";
 
 interface JointData {
   pain: number;
   mobility: number;
+}
+
+export interface DiaryEntry {
+  id: number;
+  date: string;
+  time: string;
+  pain: number;
+  fatigue: number;
+  mobility: number;
+  mood: number;
+  joints: string[];
+  jointDetails: Record<string, JointData>;
+  note: string;
 }
 
 const metrics = [
@@ -14,15 +28,12 @@ const metrics = [
 
 const moodLabels: Record<number, string> = { 1: "Очень плохо", 2: "Плохо", 3: "Так себе", 4: "Хорошо", 5: "Отлично" };
 
-interface DiaryPageProps {
-  onSave: (entry: Record<string, number>) => void;
-}
-
-export default function DiaryPage({ onSave }: DiaryPageProps) {
+export default function DiaryPage() {
   const [values, setValues] = useState<Record<string, number>>({});
   const [jointData, setJointData] = useState<Record<string, JointData>>({});
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState(false);
+  const [, setEntries] = useLocalStorage<DiaryEntry[]>("revma_diary", []);
 
   const today = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
 
@@ -30,8 +41,24 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
     const joints = Object.values(jointData);
     const maxPain = joints.length > 0 ? Math.max(...joints.map((j) => j.pain)) : 0;
     const avgMobility = joints.length > 0 ? Math.round(joints.reduce((s, j) => s + j.mobility, 0) / joints.length) : 0;
-    onSave({ ...values, pain: maxPain, mobility: avgMobility, joints: joints.length, note: note.length });
+    const now = new Date();
+    const entry: DiaryEntry = {
+      id: Date.now(),
+      date: now.toISOString().slice(0, 10),
+      time: now.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      pain: maxPain,
+      fatigue: values.fatigue || 0,
+      mobility: 10 - avgMobility,
+      mood: values.mood || 3,
+      joints: Object.keys(jointData),
+      jointDetails: { ...jointData },
+      note,
+    };
+    setEntries((prev) => [entry, ...prev]);
     setSaved(true);
+    setValues({});
+    setJointData({});
+    setNote("");
     setTimeout(() => setSaved(false), 3000);
   };
 
@@ -40,7 +67,6 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
 
   return (
     <div className="pb-24 space-y-5 animate-fade-in">
-      {/* Header */}
       <div className="card-warm p-5 bg-gradient-to-br from-orange-50 to-amber-50">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-10 h-10 bg-primary/15 rounded-xl flex items-center justify-center">
@@ -59,7 +85,6 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         )}
       </div>
 
-      {/* Joint map — боль + подвижность */}
       <div className="card-warm p-5 animate-slide-up">
         <div className="bg-gradient-to-r from-red-100 to-amber-50 rounded-xl p-4 mb-5">
           <div className="flex items-center justify-between mb-1">
@@ -78,7 +103,6 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         <BodyJointMap onJointsChange={setJointData} />
       </div>
 
-      {/* Other metrics */}
       {metrics.map((metric, idx) => (
         <div key={metric.key} className="card-warm p-5 animate-slide-up" style={{ animationDelay: `${(idx + 1) * 0.08}s` }}>
           <div className={`bg-gradient-to-r ${metric.color} rounded-xl p-4 mb-4`}>
@@ -120,7 +144,6 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         </div>
       ))}
 
-      {/* Note */}
       <div className="card-warm p-5">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">📝</span>
@@ -136,14 +159,12 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         />
       </div>
 
-      {/* Save */}
       <button
         onClick={handleSave}
         disabled={!allFilled}
         className={`w-full py-4 rounded-2xl font-semibold text-sm transition-all duration-300 ${allFilled
-          ? "bg-primary text-white shadow-lg hover:bg-orange-500 hover:shadow-xl active:scale-95"
-          : "bg-muted text-muted-foreground cursor-not-allowed"}`}
-        style={allFilled ? { boxShadow: '0 8px 24px hsl(16 72% 58% / 0.35)' } : {}}>
+          ? "bg-primary text-white shadow-lg hover:brightness-110 active:scale-95"
+          : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
         {allFilled
           ? "💾 Сохранить запись"
           : !hasJoints
