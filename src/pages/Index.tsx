@@ -3,17 +3,16 @@ import Icon from "@/components/ui/icon";
 import AuthPage from "./AuthPage";
 import DiaryPage from "./DiaryPage";
 import MonitorPage from "./MonitorPage";
-
+import RecommendPage from "./RecommendPage";
 import RemindersPage from "./RemindersPage";
 import StatsPage from "./StatsPage";
-import ReportPage from "./ReportPage";
 
-type Tab = "diary" | "monitor" | "report" | "reminders" | "stats";
+type Tab = "diary" | "monitor" | "recommend" | "reminders" | "stats";
 
 const tabs: { id: Tab; label: string; emoji: string }[] = [
   { id: "diary", label: "Дневник", emoji: "📖" },
   { id: "monitor", label: "Графики", emoji: "📊" },
-  { id: "report", label: "Отчёт", emoji: "📋" },
+  { id: "recommend", label: "Советы", emoji: "💡" },
   { id: "reminders", label: "Приёмы", emoji: "⏰" },
   { id: "stats", label: "Итоги", emoji: "🏆" },
 ];
@@ -66,7 +65,7 @@ export default function Index() {
       <main className="px-4 pt-4">
         {activeTab === "diary" && <DiaryPage onSave={(e) => setEntries([...entries, e])} />}
         {activeTab === "monitor" && <MonitorPage />}
-        {activeTab === "report" && <ReportPage />}
+        {activeTab === "recommend" && <RecommendPage />}
         {activeTab === "reminders" && <RemindersPage />}
         {activeTab === "stats" && <StatsPage />}
       </main>
