@@ -2,9 +2,13 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 import BodyJointMap from "@/components/BodyJointMap";
 
+interface JointData {
+  pain: number;
+  mobility: number;
+}
+
 const metrics = [
   { key: "fatigue", label: "Усталость", emoji: "😴", color: "from-blue-100 to-blue-50", activeColor: "bg-blue-400 text-white", hint: "Ощущаете ли вы сильную усталость?" },
-  { key: "mobility", label: "Подвижность", emoji: "🦴", color: "from-amber-100 to-amber-50", activeColor: "bg-amber-400 text-white", hint: "Насколько ограничены движения?" },
   { key: "mood", label: "Настроение", emoji: "☀️", color: "from-green-100 to-green-50", activeColor: "bg-green-400 text-white", hint: "Как вы себя чувствуете эмоционально?" },
 ];
 
@@ -16,20 +20,22 @@ interface DiaryPageProps {
 
 export default function DiaryPage({ onSave }: DiaryPageProps) {
   const [values, setValues] = useState<Record<string, number>>({});
-  const [jointPain, setJointPain] = useState<Record<string, number>>({});
+  const [jointData, setJointData] = useState<Record<string, JointData>>({});
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState(false);
 
   const today = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
 
   const handleSave = () => {
-    const maxJointPain = Object.values(jointPain).length > 0 ? Math.max(...Object.values(jointPain)) : 0;
-    onSave({ ...values, pain: maxJointPain, joints: Object.keys(jointPain).length, note: note.length });
+    const joints = Object.values(jointData);
+    const maxPain = joints.length > 0 ? Math.max(...joints.map((j) => j.pain)) : 0;
+    const avgMobility = joints.length > 0 ? Math.round(joints.reduce((s, j) => s + j.mobility, 0) / joints.length) : 0;
+    onSave({ ...values, pain: maxPain, mobility: avgMobility, joints: joints.length, note: note.length });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const hasJoints = Object.keys(jointPain).length > 0;
+  const hasJoints = Object.keys(jointData).length > 0;
   const allFilled = metrics.every((m) => values[m.key]) && hasJoints;
 
   return (
@@ -53,23 +59,23 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         )}
       </div>
 
-      {/* Joint pain map */}
+      {/* Joint map — боль + подвижность */}
       <div className="card-warm p-5 animate-slide-up">
-        <div className="bg-gradient-to-r from-red-100 to-red-50 rounded-xl p-4 mb-5">
+        <div className="bg-gradient-to-r from-red-100 to-amber-50 rounded-xl p-4 mb-5">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <span className="text-lg">🔴</span>
-              <span className="font-semibold text-foreground">Боль в суставах</span>
+              <span className="text-lg">🦴</span>
+              <span className="font-semibold text-foreground">Суставы: боль и подвижность</span>
             </div>
             {hasJoints && (
               <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
-                {Object.keys(jointPain).length} сустав(а)
+                {Object.keys(jointData).length} сустав(а)
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">Отметьте болезненные суставы на теле</p>
+          <p className="text-xs text-muted-foreground">Нажмите на сустав — укажите боль и подвижность</p>
         </div>
-        <BodyJointMap onJointsChange={setJointPain} />
+        <BodyJointMap onJointsChange={setJointData} />
       </div>
 
       {/* Other metrics */}
@@ -130,7 +136,7 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
         />
       </div>
 
-      {/* Save button */}
+      {/* Save */}
       <button
         onClick={handleSave}
         disabled={!allFilled}
@@ -142,7 +148,7 @@ export default function DiaryPage({ onSave }: DiaryPageProps) {
           ? "💾 Сохранить запись"
           : !hasJoints
             ? "Отметьте хотя бы один сустав"
-            : `Заполните все показатели (${Object.keys(values).length}/3)`}
+            : `Заполните все показатели (${Object.keys(values).length}/2)`}
       </button>
     </div>
   );
