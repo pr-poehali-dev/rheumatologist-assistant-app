@@ -78,6 +78,21 @@ export function getTopJoints(entries: ReportEntry[]): [string, number][] {
   return Object.entries(allJoints).sort((a, b) => b[1] - a[1]);
 }
 
+export interface AnalysisValue {
+  name: string;
+  value: string;
+  unit: string;
+  norm?: string;
+}
+
+export interface AnalysisInfo {
+  id: number;
+  date: string;
+  type: string;
+  values: AnalysisValue[];
+  note: string;
+}
+
 interface ExportData {
   entries: ReportEntry[];
   avgPain: number;
@@ -86,10 +101,11 @@ interface ExportData {
   avgMood: number;
   painTrend: number;
   topJoints: [string, number][];
+  analyses?: AnalysisInfo[];
 }
 
 export function exportCSV(data: ExportData) {
-  const { entries, avgPain, avgFatigue, avgMobility, avgMood } = data;
+  const { entries, avgPain, avgFatigue, avgMobility, avgMood, analyses } = data;
   const header = "Дата;Боль (0-10);Усталость (0-10);Подвижность (0-10);Настроение (1-5);Суставы;Заметки";
   const rows = entries.map((e) =>
     `${formatDateFull(e.date)};${e.pain};${e.fatigue};${e.mobility};${e.mood};${e.joints.join(", ")};${e.note}`
@@ -107,8 +123,21 @@ export function exportCSV(data: ExportData) {
     "ПРИНИМАЕМЫЕ ПРЕПАРАТЫ",
     ...demoReminders.map((r) => `${r.title};${r.type};${r.schedule}`),
   ];
+
+  const analysisRows: string[] = [];
+  if (analyses && analyses.length > 0) {
+    analysisRows.push("", "РЕЗУЛЬТАТЫ АНАЛИЗОВ");
+    analyses.forEach((a) => {
+      analysisRows.push(`${formatDateFull(a.date)};${a.type}`);
+      a.values.forEach((v) => {
+        analysisRows.push(`;${v.name};${v.value};${v.unit};Норма: ${v.norm || "—"}`);
+      });
+      if (a.note) analysisRows.push(`;Комментарий: ${a.note}`);
+    });
+  }
+
   const bom = "\uFEFF";
-  const csv = bom + [header, ...rows, ...summaryRows].join("\n");
+  const csv = bom + [header, ...rows, ...summaryRows, ...analysisRows].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -119,7 +148,7 @@ export function exportCSV(data: ExportData) {
 }
 
 export function exportPDF(data: ExportData) {
-  const { entries, avgPain, avgFatigue, avgMobility, avgMood, painTrend, topJoints } = data;
+  const { entries, avgPain, avgFatigue, avgMobility, avgMood, painTrend, topJoints, analyses } = data;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -240,8 +269,45 @@ export function exportPDF(data: ExportData) {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  y = (doc as any).lastAutoTable.finalY + 15;
-  if (y > 260) { doc.addPage(); y = 15; }
+  y = (doc as any).lastAutoTable.finalY + 10;
+  if (y > 250) { doc.addPage(); y = 15; }
+
+  if (analyses && analyses.length > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Lab Results / Результаты анализов", 15, y);
+    y += 7;
+
+    const analysisBody: string[][] = [];
+    analyses.forEach((a) => {
+      a.values.forEach((v, vi) => {
+        analysisBody.push([
+          vi === 0 ? formatDateFull(a.date) : "",
+          vi === 0 ? a.type : "",
+          v.name,
+          v.value,
+          v.unit,
+          v.norm || "-",
+        ]);
+      });
+    });
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Date", "Type", "Parameter", "Value", "Unit", "Normal range"]],
+      body: analysisBody,
+      theme: "grid",
+      headStyles: { fillColor: [76, 140, 74], fontSize: 8 },
+      bodyStyles: { fontSize: 7 },
+      margin: { left: 15, right: 15 },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    y = (doc as any).lastAutoTable.finalY + 15;
+    if (y > 260) { doc.addPage(); y = 15; }
+  } else {
+    y += 5;
+  }
 
   doc.setDrawColor(200);
   doc.line(15, y, pageWidth - 15, y);

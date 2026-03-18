@@ -1,9 +1,12 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import useLocalStorage from "@/lib/useLocalStorage";
+import type { AnalysisEntry } from "@/pages/AnalysesPage";
 import {
   reportEntries,
   calcAvg,
   formatDateShort,
+  formatDateFull,
   painBgClass,
   painTextClass,
   moodEmoji,
@@ -36,11 +39,16 @@ export default function DoctorReport() {
   const [dateFrom, setDateFrom] = useState("2026-03-05");
   const [dateTo, setDateTo] = useState("2026-03-18");
   const [generating, setGenerating] = useState<"pdf" | "csv" | null>(null);
+  const [analyses] = useLocalStorage<AnalysisEntry[]>("revma_analyses", []);
 
   const entries =
     mode === "period"
       ? reportEntries.slice(0, Math.min(reportPeriod, reportEntries.length))
       : filterEntries(dateFrom, dateTo);
+
+  const periodFrom = entries.length > 0 ? entries[entries.length - 1].date : dateFrom;
+  const periodTo = entries.length > 0 ? entries[0].date : dateTo;
+  const periodAnalyses = analyses.filter((a) => a.date >= periodFrom && a.date <= periodTo);
 
   const avgPain = calcAvg(entries.map((e) => e.pain));
   const avgFatigue = calcAvg(entries.map((e) => e.fatigue));
@@ -53,7 +61,7 @@ export default function DoctorReport() {
 
   const topJoints = getTopJoints(entries);
 
-  const exportData = { entries, avgPain, avgFatigue, avgMobility, avgMood, painTrend, topJoints };
+  const exportData = { entries, avgPain, avgFatigue, avgMobility, avgMood, painTrend, topJoints, analyses: periodAnalyses };
 
   function handleExportPDF() {
     if (entries.length === 0) return;
@@ -209,6 +217,34 @@ export default function DoctorReport() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Analyses in period */}
+          {periodAnalyses.length > 0 && (
+            <div className="bg-white/80 rounded-xl p-3">
+              <p className="text-xs font-semibold text-foreground mb-2">🧪 Анализы за период</p>
+              <div className="space-y-1.5">
+                {periodAnalyses.slice(0, 4).map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 py-1 border-b border-border/20 last:border-0">
+                    <span className="text-xs text-muted-foreground w-14 shrink-0">{formatDateShort(a.date)}</span>
+                    <span className="text-xs font-medium text-foreground flex-1 truncate">{a.type}</span>
+                    <span className="text-xs text-muted-foreground">{a.values.length} пок.</span>
+                    {a.values.some((v) => {
+                      if (!v.norm || !v.value) return false;
+                      const num = parseFloat(v.value.replace(",", "."));
+                      if (isNaN(num)) return false;
+                      const parts = v.norm.split("-").map((s) => parseFloat(s.replace(",", ".")));
+                      return parts.length === 2 && (num < parts[0] || num > parts[1]);
+                    }) && (
+                      <span className="text-xs text-red-600 font-medium">!</span>
+                    )}
+                  </div>
+                ))}
+                {periodAnalyses.length > 4 && (
+                  <p className="text-xs text-muted-foreground text-center pt-1">+ ещё {periodAnalyses.length - 4} (все войдут в файл)</p>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Export buttons */}

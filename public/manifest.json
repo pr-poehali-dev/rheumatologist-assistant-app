@@ -1,0 +1,29 @@
+{
+  "name": "РевмаДневник",
+  "short_name": "РевмаДневник",
+  "description": "Дневник здоровья для пациентов с ревматическими заболеваниями",
+  "theme_color": "#4c8c4a",
+  "background_color": "#f5f0e8",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "https://cdn.poehali.dev/projects/3140e469-3d0b-46d7-b7a2-e5206877ecaf/files/cc7d22cd-903e-40e2-8876-0cafd15f4af7.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://cdn.poehali.dev/projects/3140e469-3d0b-46d7-b7a2-e5206877ecaf/files/cc7d22cd-903e-40e2-8876-0cafd15f4af7.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://cdn.poehali.dev/projects/3140e469-3d0b-46d7-b7a2-e5206877ecaf/files/cc7d22cd-903e-40e2-8876-0cafd15f4af7.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ]
+}

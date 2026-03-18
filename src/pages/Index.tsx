@@ -5,15 +5,17 @@ import DiaryPage from "./DiaryPage";
 import MonitorPage from "./MonitorPage";
 import RecommendPage from "./RecommendPage";
 import RemindersPage from "./RemindersPage";
+import AnalysesPage from "./AnalysesPage";
 import StatsPage from "./StatsPage";
 
-type Tab = "diary" | "monitor" | "recommend" | "reminders" | "stats";
+type Tab = "diary" | "monitor" | "analyses" | "reminders" | "recommend" | "stats";
 
 const tabs: { id: Tab; label: string; emoji: string }[] = [
   { id: "diary", label: "Дневник", emoji: "📖" },
   { id: "monitor", label: "Графики", emoji: "📊" },
-  { id: "recommend", label: "Советы", emoji: "💡" },
+  { id: "analyses", label: "Анализы", emoji: "🧪" },
   { id: "reminders", label: "Приёмы", emoji: "⏰" },
+  { id: "recommend", label: "Советы", emoji: "💡" },
   { id: "stats", label: "Итоги", emoji: "🏆" },
 ];
 
@@ -65,13 +67,14 @@ export default function Index() {
       <main className="px-4 pt-4">
         {activeTab === "diary" && <DiaryPage onSave={(e) => setEntries([...entries, e])} />}
         {activeTab === "monitor" && <MonitorPage />}
+        {activeTab === "analyses" && <AnalysesPage />}
         {activeTab === "recommend" && <RecommendPage />}
         {activeTab === "reminders" && <RemindersPage />}
         {activeTab === "stats" && <StatsPage />}
       </main>
 
       {/* Bottom nav */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-border/50 px-2 py-2 z-20">
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-border/50 px-1 py-2 z-20">
         <div className="flex justify-around">
           {tabs.map((tab) => (
             <button
@@ -79,10 +82,10 @@ export default function Index() {
               onClick={() => setActiveTab(tab.id)}
               className={`nav-item ${activeTab === tab.id ? "active" : ""}`}
             >
-              <span className={`text-lg transition-transform duration-200 ${activeTab === tab.id ? "scale-110" : ""}`}>
+              <span className={`text-base transition-transform duration-200 ${activeTab === tab.id ? "scale-110" : ""}`}>
                 {tab.emoji}
               </span>
-              <span className={`text-xs font-medium ${activeTab === tab.id ? "text-primary" : "text-muted-foreground"}`}>
+              <span className={`text-[10px] font-medium leading-tight ${activeTab === tab.id ? "text-primary" : "text-muted-foreground"}`}>
                 {tab.label}
               </span>
             </button>
