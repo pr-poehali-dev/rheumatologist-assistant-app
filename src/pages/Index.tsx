@@ -3,14 +3,16 @@ import HomeScreen from "./HomeScreen";
 import JointScreen from "./JointScreen";
 import TempoScreen from "./TempoScreen";
 import DanceScreen from "./DanceScreen";
+import AchievementsScreen from "./AchievementsScreen";
+import type { JointEntry } from "./JointScreen";
 
 export type Mood = "great" | "ok" | "bad";
 export type Tempo = "slow" | "medium" | "fast" | "silent";
-export type Screen = "home" | "joints" | "tempo" | "dance";
+export type Screen = "home" | "joints" | "tempo" | "dance" | "achievements";
 
 export interface SessionData {
   mood: Mood;
-  joints: string[];
+  joints: JointEntry[];
   tempo: Tempo;
 }
 
@@ -27,7 +29,7 @@ export default function Index() {
     setScreen("joints");
   }
 
-  function confirmJoints(joints: string[]) {
+  function confirmJoints(joints: JointEntry[]) {
     setSession((s) => ({ ...s, joints }));
     setScreen("tempo");
   }
@@ -43,10 +45,16 @@ export default function Index() {
 
   return (
     <div className="min-h-screen max-w-md mx-auto">
-      {screen === "home" && <HomeScreen onStart={startSession} />}
-      {screen === "joints" && <JointScreen onConfirm={confirmJoints} onBack={() => setScreen("home")} />}
-      {screen === "tempo" && <TempoScreen mood={session.mood} onSelect={selectTempo} onBack={() => setScreen("joints")} />}
-      {screen === "dance" && <DanceScreen session={session} onFinish={finish} onBack={() => setScreen("tempo")} />}
+      {/* Main flow */}
+      {screen !== "achievements" && (
+        <>
+          {screen === "home" && <HomeScreen onStart={startSession} onAchievements={() => setScreen("achievements")} />}
+          {screen === "joints" && <JointScreen onConfirm={confirmJoints} onBack={() => setScreen("home")} />}
+          {screen === "tempo" && <TempoScreen mood={session.mood} onSelect={selectTempo} onBack={() => setScreen("joints")} />}
+          {screen === "dance" && <DanceScreen session={session} onFinish={finish} onBack={() => setScreen("tempo")} />}
+        </>
+      )}
+      {screen === "achievements" && <AchievementsScreen onBack={() => setScreen("home")} />}
     </div>
   );
 }

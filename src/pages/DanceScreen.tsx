@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import Icon from "@/components/ui/icon";
+import useLocalStorage from "@/lib/useLocalStorage";
 import type { SessionData } from "./Index";
 
 interface DanceScreenProps {
@@ -38,8 +39,10 @@ export default function DanceScreen({ session, onFinish, onBack }: DanceScreenPr
   const [state, setState] = useState<"idle" | "running" | "done">("idle");
   const [timeLeft, setTimeLeft] = useState(TOTAL);
   const [hintIdx, setHintIdx] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hintRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [, setSessions] = useLocalStorage<{ date: string; mood: string; tempo: string; durationSec: number }[]>("zabota_sessions", []);
 
   const tempo = tempoLabels[session.tempo] ?? tempoLabels.medium;
   const progress = ((TOTAL - timeLeft) / TOTAL) * 100;
@@ -47,6 +50,7 @@ export default function DanceScreen({ session, onFinish, onBack }: DanceScreenPr
   function start() {
     setState("running");
     setTimeLeft(TOTAL);
+    setElapsed(0);
     setHintIdx(0);
 
     intervalRef.current = setInterval(() => {
@@ -55,8 +59,10 @@ export default function DanceScreen({ session, onFinish, onBack }: DanceScreenPr
           clearInterval(intervalRef.current!);
           clearInterval(hintRef.current!);
           setState("done");
+          setElapsed(TOTAL);
           return 0;
         }
+        setElapsed((e) => e + 1);
         return t - 1;
       });
     }, 1000);
@@ -64,6 +70,18 @@ export default function DanceScreen({ session, onFinish, onBack }: DanceScreenPr
     hintRef.current = setInterval(() => {
       setHintIdx((i) => (i + 1) % danceHints.length);
     }, 28000);
+  }
+
+  function saveSession(durationSec: number) {
+    setSessions((prev) => [
+      ...prev,
+      {
+        date: new Date().toISOString().slice(0, 10),
+        mood: session.mood,
+        tempo: session.tempo,
+        durationSec,
+      },
+    ]);
   }
 
   function pause() {
@@ -92,10 +110,15 @@ export default function DanceScreen({ session, onFinish, onBack }: DanceScreenPr
         </p>
         <div className="bg-violet-50 border border-violet-200 rounded-3xl px-6 py-4 w-full max-w-xs">
           <p className="text-lg font-bold text-violet-700">3 минуты движения</p>
+          {session.joints.filter((j) => j.discomfort <= 3).length > 0 && (
+            <p className="text-sm text-violet-600 mt-1">
+              Ты задействовал: {session.joints.filter((j) => j.discomfort <= 3).map((j) => j.label).join(", ")} 💜
+            </p>
+          )}
           <p className="text-sm text-muted-foreground mt-1">Каждый шаг важен — ты большой молодец!</p>
         </div>
         <button
-          onClick={onFinish}
+          onClick={() => { saveSession(elapsed); onFinish(); }}
           className="w-full max-w-xs py-5 rounded-3xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xl font-bold shadow-lg active:scale-95 transition-all duration-200"
         >
           На главную 🏠
@@ -176,9 +199,14 @@ export default function DanceScreen({ session, onFinish, onBack }: DanceScreenPr
         </div>
 
         {/* Joints reminder */}
-        {session.joints.length > 0 && state === "running" && (
+        {state === "running" && session.joints.filter((j) => j.discomfort > 3).length > 0 && (
           <div className="w-full bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3 text-center">
-            <p className="text-sm text-rose-600">Береги: {session.joints.slice(0, 3).join(", ")}</p>
+            <p className="text-sm text-rose-600">⚠️ Береги: {session.joints.filter((j) => j.discomfort > 3).map((j) => j.label).slice(0, 3).join(", ")}</p>
+          </div>
+        )}
+        {state === "running" && session.joints.filter((j) => j.discomfort <= 3).length > 0 && (
+          <div className="w-full bg-green-50 border border-green-200 rounded-2xl px-4 py-2 text-center">
+            <p className="text-xs text-green-700">✅ Двигаем: {session.joints.filter((j) => j.discomfort <= 3).map((j) => j.label).join(", ")}</p>
           </div>
         )}
 

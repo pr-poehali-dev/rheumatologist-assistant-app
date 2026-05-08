@@ -1,7 +1,9 @@
+import useLocalStorage from "@/lib/useLocalStorage";
 import type { Mood } from "./Index";
 
 interface HomeScreenProps {
   onStart: (mood: Mood) => void;
+  onAchievements: () => void;
 }
 
 const moods: { id: Mood; emoji: string; label: string; bg: string; border: string }[] = [
@@ -10,12 +12,17 @@ const moods: { id: Mood; emoji: string; label: string; bg: string; border: strin
   { id: "bad",   emoji: "😔", label: "Тяжело", bg: "bg-rose-50", border: "border-rose-300" },
 ];
 
-export default function HomeScreen({ onStart }: HomeScreenProps) {
+interface Session { date: string; mood: string; tempo: string; durationSec: number; }
+
+export default function HomeScreen({ onStart, onAchievements }: HomeScreenProps) {
+  const [sessions] = useLocalStorage<Session[]>("zabota_sessions", []);
+  const totalSessions = sessions.length;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between px-6 py-12 animate-fade-in">
+    <div className="min-h-screen flex flex-col items-center justify-between px-6 py-10 animate-fade-in">
 
       {/* Top — logo + title */}
-      <div className="flex flex-col items-center gap-3 mt-4">
+      <div className="w-full flex flex-col items-center gap-3 mt-2">
         <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg">
           <span className="text-4xl">💃</span>
         </div>
@@ -25,6 +32,17 @@ export default function HomeScreen({ onStart }: HomeScreenProps) {
         <p className="text-base text-muted-foreground text-center">
           Мягкие упражнения для твоего тела
         </p>
+
+        {/* Achievements button */}
+        <button
+          onClick={onAchievements}
+          className="flex items-center gap-2 mt-1 bg-violet-50 border border-violet-200 rounded-2xl px-4 py-2.5 active:scale-95 transition-all"
+        >
+          <span className="text-xl">🏆</span>
+          <span className="text-sm font-semibold text-violet-700">
+            Достижения {totalSessions > 0 ? `· ${totalSessions} занятий` : ""}
+          </span>
+        </button>
       </div>
 
       {/* Middle — mood */}
@@ -33,7 +51,7 @@ export default function HomeScreen({ onStart }: HomeScreenProps) {
           Как ты сегодня? 🌿
         </h2>
 
-        <div className="flex gap-4 w-full justify-center">
+        <div className="flex gap-3 w-full justify-center">
           {moods.map((m) => (
             <button
               key={m.id}

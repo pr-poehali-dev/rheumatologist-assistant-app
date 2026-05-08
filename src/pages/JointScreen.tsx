@@ -9,6 +9,12 @@ interface Joint {
   r?: number;
 }
 
+export interface JointEntry {
+  id: string;
+  label: string;
+  discomfort: number; // 1–10
+}
+
 const JOINTS: Joint[] = [
   { id: "jaw_l", label: "Челюсть левая", cx: 118, cy: 52 },
   { id: "jaw_r", label: "Челюсть правая", cx: 132, cy: 52 },
@@ -34,29 +40,77 @@ const JOINTS: Joint[] = [
   { id: "foot_r", label: "Стопа правая", cx: 150, cy: 352 },
 ];
 
+function discomfortColor(d: number): string {
+  if (d <= 3) return "#22c55e";
+  if (d <= 6) return "#f59e0b";
+  return "#ef4444";
+}
+
+function discomfortStroke(d: number): string {
+  if (d <= 3) return "#16a34a";
+  if (d <= 6) return "#d97706";
+  return "#dc2626";
+}
+
+function discomfortLabel(d: number): string {
+  if (d <= 2) return "Совсем чуть-чуть";
+  if (d <= 3) return "Немного";
+  if (d <= 5) return "Ощутимо";
+  if (d <= 7) return "Сильно";
+  return "Очень сильно";
+}
+
 interface JointScreenProps {
-  onConfirm: (joints: string[]) => void;
+  onConfirm: (joints: JointEntry[]) => void;
   onBack: () => void;
 }
 
 export default function JointScreen({ onConfirm, onBack }: JointScreenProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // jointData: id → discomfort 1–10
+  const [jointData, setJointData] = useState<Record<string, number>>({});
+  // which joint's popup is open
+  const [activeJoint, setActiveJoint] = useState<Joint | null>(null);
+  const [draftDiscomfort, setDraftDiscomfort] = useState<number>(5);
 
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  function openPopup(joint: Joint) {
+    setActiveJoint(joint);
+    setDraftDiscomfort(jointData[joint.id] ?? 5);
+  }
+
+  function confirmJoint() {
+    if (!activeJoint) return;
+    setJointData((prev) => ({ ...prev, [activeJoint.id]: draftDiscomfort }));
+    setActiveJoint(null);
+  }
+
+  function removeJoint(id: string) {
+    setJointData((prev) => {
+      const next = { ...prev };
+      delete next[id];
       return next;
     });
+    setActiveJoint(null);
   }
 
-  function getColor(id: string) {
-    return selected.has(id) ? "#a855f7" : "white";
+  function getCircleFill(id: string) {
+    const d = jointData[id];
+    if (d === undefined) return "white";
+    return discomfortColor(d);
   }
-  function getStroke(id: string) {
-    return selected.has(id) ? "#9333ea" : "#d1d5db";
+  function getCircleStroke(id: string) {
+    const d = jointData[id];
+    if (d === undefined) return "#d1d5db";
+    return discomfortStroke(d);
   }
+
+  const entries = Object.entries(jointData).map(([id, discomfort]) => ({
+    id,
+    label: JOINTS.find((j) => j.id === id)?.label ?? id,
+    discomfort,
+  }));
+
+  const movable = entries.filter((e) => e.discomfort <= 3);
+  const careful = entries.filter((e) => e.discomfort > 3);
 
   return (
     <div className="min-h-screen flex flex-col animate-fade-in">
@@ -67,17 +121,23 @@ export default function JointScreen({ onConfirm, onBack }: JointScreenProps) {
         </button>
         <div>
           <h2 className="text-lg font-bold text-foreground">Где сегодня дискомфорт?</h2>
-          <p className="text-xs text-muted-foreground">Нажми на суставы, которые беспокоят</p>
+          <p className="text-xs text-muted-foreground">Нажми на сустав — оцени ощущения</p>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center px-4 py-4">
-        {selected.size > 0 && (
-          <div className="w-full mb-3 px-4 py-2.5 bg-purple-50 border border-purple-200 rounded-2xl flex items-center gap-2 animate-slide-up">
-            <span className="text-lg">💜</span>
-            <p className="text-sm font-medium text-purple-700">
-              Отмечено: {[...selected].map((id) => JOINTS.find((j) => j.id === id)?.label).join(", ")}
-            </p>
+      <div className="flex-1 flex flex-col items-center px-4 py-4 gap-3">
+
+        {/* Summary badges */}
+        {movable.length > 0 && (
+          <div className="w-full px-4 py-3 bg-green-50 border border-green-200 rounded-2xl animate-slide-up">
+            <p className="text-sm font-bold text-green-700 mb-1">✅ Можно задействовать в движении:</p>
+            <p className="text-sm text-green-600">{movable.map((e) => e.label).join(", ")}</p>
+          </div>
+        )}
+        {careful.length > 0 && (
+          <div className="w-full px-4 py-3 bg-rose-50 border border-rose-200 rounded-2xl animate-slide-up">
+            <p className="text-sm font-bold text-rose-700 mb-1">⚠️ Будем беречь:</p>
+            <p className="text-sm text-rose-600">{careful.map((e) => e.label).join(", ")}</p>
           </div>
         )}
 
@@ -108,26 +168,28 @@ export default function JointScreen({ onConfirm, onBack }: JointScreenProps) {
             </g>
 
             {JOINTS.map((joint) => {
-              const sel = selected.has(joint.id);
+              const d = jointData[joint.id];
+              const hasData = d !== undefined;
+              const isActive = activeJoint?.id === joint.id;
               return (
                 <g key={joint.id}>
-                  {sel && (
+                  {hasData && (
                     <circle cx={joint.cx} cy={joint.cy} r={(joint.r || 7) + 6}
-                      fill="#a855f7" opacity="0.2" />
+                      fill={discomfortColor(d)} opacity="0.18" />
                   )}
                   <circle
                     cx={joint.cx} cy={joint.cy}
-                    r={sel ? (joint.r || 7) + 2 : (joint.r || 7)}
-                    fill={getColor(joint.id)}
-                    stroke={getStroke(joint.id)}
-                    strokeWidth={sel ? 2.5 : 1.5}
+                    r={isActive ? (joint.r || 7) + 3 : hasData ? (joint.r || 7) + 1 : (joint.r || 7)}
+                    fill={getCircleFill(joint.id)}
+                    stroke={isActive ? "#7c3aed" : getCircleStroke(joint.id)}
+                    strokeWidth={isActive ? 2.5 : hasData ? 2 : 1.5}
                     style={{ cursor: "pointer", transition: "all 0.15s ease" }}
-                    onClick={() => toggle(joint.id)}
+                    onClick={() => openPopup(joint)}
                   />
-                  {sel && (
+                  {hasData && (
                     <text x={joint.cx} y={joint.cy + 4} textAnchor="middle"
-                      fontSize="8" fontWeight="700" fill="white" style={{ pointerEvents: "none" }}>
-                      ✓
+                      fontSize="7" fontWeight="700" fill="white" style={{ pointerEvents: "none" }}>
+                      {d}
                     </text>
                   )}
                 </g>
@@ -140,7 +202,7 @@ export default function JointScreen({ onConfirm, onBack }: JointScreenProps) {
       {/* Bottom button */}
       <div className="sticky bottom-0 px-4 pb-6 pt-3 bg-background/90 backdrop-blur-sm">
         <button
-          onClick={() => onConfirm([...selected])}
+          onClick={() => onConfirm(entries)}
           className="w-full py-5 rounded-3xl bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xl font-bold shadow-lg active:scale-95 transition-all duration-200"
         >
           Начать занятие 🌟
@@ -152,6 +214,76 @@ export default function JointScreen({ onConfirm, onBack }: JointScreenProps) {
           Пропустить этот шаг
         </button>
       </div>
+
+      {/* Discomfort popup */}
+      {activeJoint && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={() => setActiveJoint(null)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl px-5 pt-5 pb-8 animate-slide-up max-w-md mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-foreground">{activeJoint.label}</h3>
+              <button onClick={() => setActiveJoint(null)} className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center active:scale-90">
+                <Icon name="X" size={16} className="text-muted-foreground" />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-4">Как ощущается сейчас?</p>
+
+            {/* Scale 1–10 */}
+            <div className="flex gap-1.5 mb-3">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => {
+                const color = v <= 3 ? "bg-green-100 text-green-700 border-green-300"
+                  : v <= 6 ? "bg-amber-100 text-amber-700 border-amber-300"
+                  : "bg-red-100 text-red-700 border-red-300";
+                const activeColor = v <= 3 ? "bg-green-500 text-white border-green-500"
+                  : v <= 6 ? "bg-amber-500 text-white border-amber-500"
+                  : "bg-red-500 text-white border-red-500";
+                return (
+                  <button key={v}
+                    onClick={() => setDraftDiscomfort(v)}
+                    className={`flex-1 aspect-square rounded-xl border-2 font-bold text-sm flex items-center justify-center transition-all active:scale-90
+                      ${draftDiscomfort === v ? activeColor : color}`}
+                  >
+                    {v}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Labels */}
+            <div className="flex justify-between text-xs text-muted-foreground mb-2">
+              <span>😌 Почти нет</span>
+              <span>😣 Очень сильно</span>
+            </div>
+
+            {/* Feedback */}
+            <div className={`rounded-2xl px-4 py-3 mb-5 text-center ${draftDiscomfort <= 3 ? "bg-green-50 border border-green-200" : "bg-rose-50 border border-rose-200"}`}>
+              <p className={`text-base font-semibold ${draftDiscomfort <= 3 ? "text-green-700" : "text-rose-700"}`}>
+                {draftDiscomfort <= 3
+                  ? `✅ ${discomfortLabel(draftDiscomfort)} — задействуем в движении`
+                  : `⚠️ ${discomfortLabel(draftDiscomfort)} — будем беречь этот сустав`}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              {jointData[activeJoint.id] !== undefined && (
+                <button
+                  onClick={() => removeJoint(activeJoint.id)}
+                  className="flex-1 py-3 rounded-2xl border-2 border-rose-200 text-rose-500 font-semibold active:scale-95 transition-all"
+                >
+                  Убрать
+                </button>
+              )}
+              <button
+                onClick={confirmJoint}
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold text-lg active:scale-95 transition-all shadow-md"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
