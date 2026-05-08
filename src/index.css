@@ -4,42 +4,35 @@
 
 @layer base {
   :root {
-    --background: 80 30% 96%;
-    --foreground: 100 20% 15%;
+    --background: 270 30% 97%;
+    --foreground: 270 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 100 20% 15%;
+    --card-foreground: 270 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 100 20% 15%;
+    --popover-foreground: 270 20% 15%;
 
-    --primary: 88 50% 42%;
+    --primary: 270 70% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 80 40% 90%;
-    --secondary-foreground: 100 20% 25%;
+    --secondary: 270 40% 92%;
+    --secondary-foreground: 270 20% 25%;
 
-    --muted: 80 20% 92%;
-    --muted-foreground: 100 10% 50%;
+    --muted: 270 20% 93%;
+    --muted-foreground: 270 10% 52%;
 
-    --accent: 52 90% 60%;
-    --accent-foreground: 100 20% 15%;
+    --accent: 300 60% 70%;
+    --accent-foreground: 270 20% 15%;
 
     --destructive: 0 72% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 80 20% 85%;
-    --input: 80 20% 85%;
-    --ring: 88 50% 42%;
+    --border: 270 20% 87%;
+    --input: 270 20% 87%;
+    --ring: 270 70% 55%;
 
-    --radius: 1rem;
-
-    --warm-peach: 88 50% 92%;
-    --warm-coral: 88 50% 42%;
-    --warm-amber: 52 90% 60%;
-    --warm-sage: 142 30% 60%;
-    --warm-lavender: 270 30% 85%;
-    --warm-cream: 80 30% 96%;
+    --radius: 1.25rem;
   }
 }
 
@@ -52,13 +45,13 @@
     @apply bg-background text-foreground font-golos;
     background-image:
       radial-gradient(
-        ellipse at 20% 20%,
-        hsl(88 50% 88% / 0.5) 0%,
+        ellipse at 20% 10%,
+        hsl(270 60% 90% / 0.6) 0%,
         transparent 50%
       ),
       radial-gradient(
-        ellipse at 80% 80%,
-        hsl(52 90% 88% / 0.4) 0%,
+        ellipse at 80% 90%,
+        hsl(300 50% 90% / 0.5) 0%,
         transparent 50%
       );
     min-height: 100vh;
